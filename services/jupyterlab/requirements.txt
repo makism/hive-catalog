@@ -1,0 +1,8 @@
+findspark==2.0.1
+pyspark==3.3.0
+jupyterlab==3.2.5
+jupyterlab-sparkmonitor==4.1.0
+jupyterlab-code-formatter
+pandas
+matplotlib
+delta-spark

@@ -1,0 +1,80 @@
+version: '3'
+
+services:
+  #
+  # Jupyterlab
+  #
+  jupyterlab:
+    image: jupyterlab:latest
+    container_name: jupyterlab
+    build:
+      context: services/jupyterlab/
+      dockerfile: Dockerfile
+    environment:
+      PYTHONPATH: "/opt/spark-jobs/src/"
+    volumes:
+      - ./services/jupyterlab/notebooks/:/opt/workspace/
+      - warehouse:/opt/hive/data/warehouse
+    ports:
+      - 8888:8888
+    depends_on:
+      - metastore
+
+  #
+  # Apache Hive
+  # from: https://hive.apache.org/developement/quickstart/
+  #
+  metastore:
+    image: apache/hive:4.0.0-alpha-2
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    container_name: metastore
+    hostname: metastore
+    environment:
+      DB_DRIVER: postgres
+      SERVICE_NAME: 'metastore'
+      SERVICE_OPTS: '-Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+                     -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://postgres:5432/metastore_db
+                     -Djavax.jdo.option.ConnectionUserName=hive
+                     -Djavax.jdo.option.ConnectionPassword=password'
+    ports:
+        - '9083:9083'
+    volumes:
+      - warehouse:/opt/hive/data/warehouse
+
+  hiveserver2:
+    image: apache/hive:4.0.0-alpha-2
+    depends_on:
+      - metastore
+    restart: unless-stopped
+    container_name: hiveserver2
+    environment:
+      HIVE_SERVER2_THRIFT_PORT: 10000
+      SERVICE_OPTS: '-Dhive.metastore.uris=thrift://metastore:9083'
+      IS_RESUME: 'true'
+      SERVICE_NAME: 'hiveserver2'
+    ports:
+      - '10000:10000'
+      - '10002:10002'
+    volumes:
+      - warehouse:/opt/hive/data/warehouse
+
+  postgres:
+    image: postgres:16.0
+    restart: unless-stopped
+    container_name: postgres
+    hostname: postgres
+    environment:
+      POSTGRES_DB: 'metastore_db'
+      POSTGRES_USER: 'hive'
+      POSTGRES_PASSWORD: 'password'
+    ports:
+      - '5432:5432'
+    volumes:
+      - hive-db:/var/lib/postgresql
+
+volumes:
+  data-lake:
+  hive-db:
+  warehouse:
